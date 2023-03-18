@@ -1,0 +1,44 @@
+version: "3.9"
+
+x-logging: &logging
+ driver: "json-file"
+ options:
+   max-size: "100m"
+   max-file: "1"
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    depends_on:
+      php:
+        condition: service_started
+    networks:
+      - net
+    volumes:
+      - ./nginx/:/etc/nginx/conf.d/
+      - ./data/:/var/www/html/
+      - ./logs/nginx:/var/log/nginx/
+    restart: unless-stopped
+    deploy:
+     resources:
+       limits:
+         cpus: "${DOCKER_WEB_CPUS}"
+         memory: "${DOCKER_WEB_MEMORY}"
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sS http://localhost:8080 | grep -c 'works' > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  net:
